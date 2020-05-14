@@ -12,11 +12,11 @@ import net.jastrab.unleashedintegration.integration.DigiKeyOrderMessageSource;
 import net.jastrab.unleashedintegration.model.DigiKeyProductWrapper;
 import net.jastrab.unleashedintegration.repository.OrderStatusRepo;
 import net.jastrab.unleashedintegration.repository.UnleashedItemsRepo;
-import net.jastrab.unleashedintegration.service.DigiKeyOrderProcessor;
 import net.jastrab.unleashedintegration.service.DigiKeyOrderService;
 import net.jastrab.unleashedintegration.service.UnleashedMetaService;
 import net.jastrab.unleashedspringclient.client.UnleashedClient;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.IntegrationComponentScan;
@@ -26,21 +26,20 @@ import org.springframework.integration.core.MessageSource;
 import org.springframework.integration.dsl.*;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHeaders;
-import org.springframework.messaging.support.MessageBuilder;
 
 import java.time.Duration;
-import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Configuration
 @EnableIntegration
+@EnableConfigurationProperties(IntegrationConfigurationProperties.class)
 @IntegrationComponentScan("net.jastrab.unleashedintegration.service")
 public class IntegrationConfiguration {
     @Value("${integration.threads:6}")
@@ -49,6 +48,7 @@ public class IntegrationConfiguration {
     @Value("${integration.interval-hours:4}")
     private Integer intervalHours = 4;
 
+    private final IntegrationConfigurationProperties configurationProperties;
     private final DigiKeyOrderService orderService;
     private final OrderStatusRepo ordersRepository;
     private final UnleashedItemsRepo itemsRepository;
@@ -57,11 +57,13 @@ public class IntegrationConfiguration {
 
     private final PollerSpec sourcePoller;
 
-    public IntegrationConfiguration(DigiKeyOrderService orderService,
+    public IntegrationConfiguration(IntegrationConfigurationProperties configurationProperties,
+                                    DigiKeyOrderService orderService,
                                     OrderStatusRepo ordersRepository,
                                     UnleashedItemsRepo itemsRepository,
                                     UnleashedClient unleashedClient,
                                     UnleashedMetaService unleashedMetaService) {
+        this.configurationProperties = configurationProperties;
         this.orderService = orderService;
         this.ordersRepository = ordersRepository;
         this.itemsRepository = itemsRepository;
@@ -92,10 +94,11 @@ public class IntegrationConfiguration {
 
     @Bean
     public MessageSource<String> orderServiceMessageSource() {
-        return new DigiKeyOrderMessageSource(
-                this.orderService,
-                orderId -> !ordersRepository.existsBySalesorderId(orderId),
-                15);
+        DigiKeyOrderMessageSource messageSource = new DigiKeyOrderMessageSource(this.orderService);
+        messageSource.setFilter(salesOrder -> !ordersRepository.existsBySalesorderId(salesOrder.getSalesorderId()));
+        messageSource.setMaxOrderAge(Period.ofDays(configurationProperties.getMaxOrderAgeDays()));
+
+        return messageSource;
     }
 
     @Bean
@@ -133,11 +136,6 @@ public class IntegrationConfiguration {
 
                     return null;
                 })).get();
-    }
-
-    private OrderStatus orderStatusFromHistory(String salesOrderId) {
-        log.info("Fetching order details for Sales Order ID: {}", salesOrderId);
-        return orderService.getDetailedOrderStatus(salesOrderId);
     }
 
     private List<DigiKeyProductWrapper> splitOrderStatus(OrderStatus orderStatus) {
