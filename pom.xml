@@ -35,17 +35,17 @@
         <dependency>
             <groupId>net.jastrab</groupId>
             <artifactId>digikey-common</artifactId>
-            <version>0.5.13-SNAPSHOT</version>
+            <version>0.6.0</version>
         </dependency>
         <dependency>
             <groupId>net.jastrab</groupId>
             <artifactId>unleashed-common</artifactId>
-            <version>0.6.1-SNAPSHOT</version>
+            <version>0.6.1</version>
         </dependency>
         <dependency>
             <groupId>net.jastrab</groupId>
             <artifactId>unleashed-spring-client</artifactId>
-            <version>0.6.1-SNAPSHOT</version>
+            <version>0.6.1</version>
         </dependency>
 
         <!-- Feign -->
@@ -111,11 +111,6 @@
             <artifactId>spring-integration-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>
     </dependencies>
 
     <build>
@@ -126,4 +121,11 @@
             </plugin>
         </plugins>
     </build>
+    <distributionManagement>
+        <repository>
+            <id>bintray-bradyzp-dgs-oss</id>
+            <name>bradyzp-dgs-oss</name>
+            <url>https://api.bintray.com/maven/bradyzp/dgs-oss/unleashed-integration/;publish=1</url>
+        </repository>
+    </distributionManagement>
 </project>
